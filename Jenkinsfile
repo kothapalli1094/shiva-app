@@ -11,7 +11,7 @@ pipeline {
         NEXUS_PROTOCOL      = "http"
         NEXUS_URL           = "3.92.191.162:8081"
         NEXUS_REPOSITORY    = "shiva-app"
-        NEXUS_CREDENTIAL_ID = "Nexus-server"
+        NEXUS_CREDENTIAL_ID = "Nexus_server"
 
         // SonarQube scanner tool
         SCANNER_HOME = tool 'sonar-scanner'
