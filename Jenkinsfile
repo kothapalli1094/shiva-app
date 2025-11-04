@@ -9,9 +9,9 @@ pipeline {
         // Nexus details
         NEXUS_VERSION     = "nexus3"
         NEXUS_PROTOCOL    = "http"
-        NEXUS_URL         = "3.92.191.162:8081"
-        NEXUS_REPOSITORY  = "shiva-declarative"
-        NEXUS_CREDENTIAL_ID = "Nexus_server"
+        NEXUS_URL         = "98.82.189.238:8081"
+        NEXUS_REPOSITORY  = "nexus-server"
+        NEXUS_CREDENTIAL_ID = "nexus"
 
         // SonarQube scanner tool
         SCANNER_HOME = tool 'sonar-scanner'
