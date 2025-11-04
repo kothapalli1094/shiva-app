@@ -2,107 +2,71 @@ pipeline {
     agent any
 
     tools {
-        maven 'MVN_HOME'
+        maven 'maven'
+        jdk 'jdk17'
     }
 
     environment {
-        // Nexus details
-        NEXUS_VERSION     = "nexus3"
-        NEXUS_PROTOCOL    = "http"
-        NEXUS_URL         = "98.82.189.238:8081"
-        NEXUS_REPOSITORY  = "nexus-server"
-        NEXUS_CREDENTIAL_ID = "nexus"
-
-        // SonarQube scanner tool
-        SCANNER_HOME = tool 'sonar-scanner'
-
-        // Slack details
-        SLACK_CHANNEL = "#jenkins-integration"
+        // Optional if Nexus is used
+        NEXUS_CREDENTIALS = 'nexus'
+        NEXUS_URL = 'http://98.82.189.238:8081//repository/maven-releases/'
     }
 
     stages {
-        stage("Clone Code") {
+        stage('Checkout Code') {
             steps {
+                echo '🔁 Checking out code from GitHub...'
                 git branch: 'main', url: 'https://github.com/kothapalli1094/shiva-app.git'
             }
         }
 
-        stage("Maven Build") {
+        stage('Build') {
             steps {
-                sh 'mvn -Dmaven.test.failure.ignore=true clean install'
+                echo '🏗️ Building project using Maven...'
+                sh 'mvn clean package -DskipTests'
             }
         }
 
-        stage("SonarQube Analysis") {
+        stage('Test') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh '''$SCANNER_HOME/bin/sonar-scanner \
-                        -Dsonar.projectKey=shiva-app \
-                        -Dsonar.projectName="shiva-app" \
-                        -Dsonar.projectVersion=1.0 \
-                        -Dsonar.sources=src/main/java \
-                        -Dsonar.java.binaries=target/classes '''
-                }
+                echo '🧪 Running unit tests...'
+                sh 'mvn test'
             }
         }
 
-        stage("Publish to Nexus") {
+        stage('Archive Artifact') {
             steps {
-                script {
-                    pom = readMavenPom file: "pom.xml"
-                    filesByGlob = findFiles(glob: "target/*.${pom.packaging}")
-                    echo "${filesByGlob[0].name} ${filesByGlob[0].path}"
-                    artifactPath = filesByGlob[0].path
-                    artifactExists = fileExists artifactPath
-
-                    if (artifactExists) {
-                        nexusArtifactUploader(
-                            nexusVersion: NEXUS_VERSION,
-                            protocol: NEXUS_PROTOCOL,
-                            nexusUrl: NEXUS_URL,
-                            groupId: pom.groupId,
-                            version: pom.version,
-                            repository: NEXUS_REPOSITORY,
-                            credentialsId: NEXUS_CREDENTIAL_ID,
-                            artifacts: [
-                                [artifactId: pom.artifactId, classifier: '', file: artifactPath, type: pom.packaging],
-                                [artifactId: pom.artifactId, classifier: '', file: "pom.xml", type: "pom"]
-                            ]
-                        )
-                    } else {
-                        error "*** File: ${artifactPath}, could not be found"
-                    }
-                }
+                echo '📦 Archiving build artifacts...'
+                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
         }
 
-        stage("Deploy to Tomcat") {
+        stage('Deploy to Nexus (Optional)') {
+            when {
+                expression { return env.NEXUS_URL != null }
+            }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'tomcat_credentials', usernameVariable: 'TOMCAT_USER', passwordVariable: 'TOMCAT_PASS')]) {
-                    script {
-                        // WAR file built by Maven
-                        def warFile = sh(script: "ls target/*.war | head -n 1", returnStdout: true).trim()
-
-                        echo "Deploying ${warFile} to Tomcat at context path /sunil-app ..."
-
-                        sh """
-                            curl -u $TOMCAT_USER:$TOMCAT_PASS \
-                                 -T ${warFile} \
-                                 "http://54.91.10.42:8080/manager/text/deploy?path=/shiva-app&update=true"
-                        """
-                    }
-                }
+                echo '🚀 Uploading artifact to Nexus...'
+                sh """
+                mvn deploy:deploy-file \
+                    -DgroupId=com.example \
+                    -DartifactId=myapp \
+                    -Dversion=1.0.${BUILD_NUMBER} \
+                    -Dpackaging=jar \
+                    -Dfile=target/*.jar \
+                    -DrepositoryId=nexus \
+                    -Durl=${NEXUS_URL}
+                """
             }
         }
+    }
 
-        stage("Slack Notification") {
-            steps {
-                slackSend(
-                    channel: "${SLACK_CHANNEL}",
-                    color: "#36a64f",
-                    message: "✅ Jenkins Declarative Pipeline for deployed successfully to Tomcat! Job: ${env.JOB_NAME} [${env.BUILD_NUMBER}]"
-                )
-            }
+    post {
+        success {
+            echo '✅ CI pipeline completed successfully!'
+        }
+        failure {
+            echo '❌ CI pipeline failed — check logs for details.'
         }
     }
 }
