@@ -7,10 +7,12 @@ pipeline {
     }
 
     environment {
+        // ✅ Nexus Repository URL (change if needed)
         NEXUS_URL = 'http://98.82.189.238:8081/repository/maven-releases/'
     }
 
     stages {
+
         stage('Checkout Code') {
             steps {
                 echo '🔁 Checking out code from GitHub...'
@@ -22,7 +24,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                echo '🏗️ Building project using Maven...'
+                echo '🏗️ Building WAR package using Maven...'
                 sh 'mvn clean package -DskipTests'
             }
         }
@@ -36,21 +38,24 @@ pipeline {
 
         stage('Archive Artifact') {
             steps {
-                echo '📦 Archiving build artifacts...'
+                echo '📦 Archiving WAR artifact...'
                 archiveArtifacts artifacts: 'target/*.war', fingerprint: true
             }
         }
 
-        stage('Deploy to Nexus') {
+        stage('Deploy to Nexus (Optional)') {
+            when {
+                expression { return env.NEXUS_URL != null }
+            }
             steps {
-                echo '🚀 Uploading artifact to Nexus...'
+                echo '🚀 Uploading WAR artifact to Nexus...'
                 sh """
                 mvn deploy:deploy-file \
-                    -DgroupId=com.example \
-                    -DartifactId=myapp \
+                    -DgroupId=com.shiva \
+                    -DartifactId=shiva-app \
                     -Dversion=1.0.${BUILD_NUMBER} \
-                    -Dpackaging=jar \
-                    -Dfile=target/*.jar \
+                    -Dpackaging=war \
+                    -Dfile=target/*.war \
                     -DrepositoryId=nexus \
                     -Durl=${NEXUS_URL}
                 """
