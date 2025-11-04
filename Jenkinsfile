@@ -14,7 +14,9 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 echo '🔁 Checking out code from GitHub...'
-                git branch: 'main', url: 'https://github.com/kothapalli1094/shiva-app.git'
+                git branch: 'main',
+                    credentialsId: 'git-cred',
+                    url: 'https://github.com/kothapalli1094/shiva-app.git'
             }
         }
 
@@ -39,10 +41,7 @@ pipeline {
             }
         }
 
-        stage('Deploy to Nexus (Optional)') {
-            when {
-                expression { return env.NEXUS_URL != null }
-            }
+        stage('Deploy to Nexus') {
             steps {
                 echo '🚀 Uploading artifact to Nexus...'
                 sh """
