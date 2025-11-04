@@ -64,7 +64,7 @@
 
     <distributionManagement>
         <repository>
-            <id>Nexus-server</id>
+            <id>nexus-server</id>
             <url>http://98.82.189.238:8081//repository/shiva-app/</url>
         </repository>
     </distributionManagement>
